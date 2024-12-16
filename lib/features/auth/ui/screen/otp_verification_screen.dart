@@ -1,10 +1,17 @@
 
+import 'dart:async';
+
+
 import 'package:ecomerce_project_ostad/app/app_colors.dart';
+import 'package:ecomerce_project_ostad/app/app_constant.dart';
+import 'package:ecomerce_project_ostad/features/auth/ui/screen/complete_profile_screen.dart';
 import 'package:ecomerce_project_ostad/features/auth/ui/widgets/app_logo_widget.dart';
-import 'package:email_validator/email_validator.dart';
-import 'package:flutter/cupertino.dart';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/painting.dart';
+
+import 'package:get/get.dart';
+import 'package:get/get_state_manager/get_state_manager.dart';
+
 import 'package:pin_code_fields/pin_code_fields.dart';
 
 class OTPVerificationScreen extends StatefulWidget {
@@ -20,6 +27,36 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
 
   final TextEditingController _otpTEController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final RxInt _remainingTime = AppConstant.resentOTPTimeOutInSec.obs;
+  late Timer timer;
+  final RxBool _enableResendCodeButton = false.obs;
+
+  void _startResendCodeTimer(){
+    _enableResendCodeButton.value = false;
+    _remainingTime.value = AppConstant.resentOTPTimeOutInSec;
+   timer =  Timer.periodic(const Duration(seconds: 1), (t) {
+
+      _remainingTime.value--;
+      if(_remainingTime.value == 0){
+        t.cancel();
+        _enableResendCodeButton.value = true;
+      }
+
+
+    });
+  }
+  @override
+  void initState() {
+    // TODO: implement initState
+    _startResendCodeTimer();
+    super.initState();
+  }
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    timer.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,23 +113,33 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                 ElevatedButton(
 
                     onPressed: (){
+                      /*
                       if(_formKey.currentState!.validate()){
 
-                      }
+                      }*/
+                      Navigator.pushNamed(context, CompleteProfileScreen.name);
                     }, child:const Text("Next")),
                 const SizedBox(height: 24,),
 
                 // TODO: enable button when 120s is done and invisible the text
-                RichText(text: const TextSpan(
-                  style: TextStyle(
-                    color: Colors.grey
-                  ),
-                  text: "This code will be expired in ",
-                  children: [
-                    TextSpan(text: "120s",style: TextStyle(color: AppColors.themeColor))
-                  ]
+                Obx(() => Visibility(
+                  visible: !_enableResendCodeButton.value,
+                  child: RichText(text:  TextSpan(
+                    style: TextStyle(
+                      color: Colors.grey
+                    ),
+                    text: "This code will be expired in ",
+                    children: [
+                      TextSpan(text: "${_remainingTime.value}s",style: TextStyle(color: AppColors.themeColor))
+                    ]
+                  )),
                 )),
-                TextButton(onPressed: (){}, child: const Text("Resend Code")),
+                Obx(() => Visibility(
+                  visible: _enableResendCodeButton.value,
+                  child: TextButton(onPressed: (){
+                    _startResendCodeTimer();
+                  }, child: const Text("Resend Code")),
+                )),
               ],
             ),
           ),
